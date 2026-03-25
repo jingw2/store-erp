@@ -1,0 +1,329 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  HQ_ADMIN
+  REGIONAL_MANAGER
+  STORE_MANAGER
+  STAFF
+}
+
+enum StoreRole {
+  STORE_MANAGER
+  STAFF
+}
+
+enum MaterialType {
+  INGREDIENT
+  CONSUMABLE
+}
+
+enum InventoryTransactionType {
+  INITIAL_IMPORT
+  PURCHASE
+  SALE_DEDUCTION
+  STOCKTAKE_ADJUSTMENT
+  MANUAL_ADJUSTMENT
+}
+
+enum StocktakeStatus {
+  DRAFT
+  IN_PROGRESS
+  PENDING_APPROVAL
+  COMPLETED
+}
+
+enum RestockStatus {
+  PENDING
+  CONFIRMED
+  DISMISSED
+}
+
+enum WebhookStatus {
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+model Tenant {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  defaultLocale String   @default("zh")
+  plan          String   @default("starter")
+  createdAt     DateTime @default(now())
+
+  stores             Store[]
+  users              User[]
+  regions            TenantRegion[]
+  products           Product[]
+  materials          Material[]
+  productRecipes     ProductRecipe[]
+  storeInventory     StoreInventory[]
+  transactions       InventoryTransaction[]
+  saleEvents         SaleEvent[]
+  stocktakes         StocktakeSession[]
+  restockSuggestions RestockSuggestion[]
+  webhookLogs        WebhookLog[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  tenantId     String?
+  email        String     @unique
+  passwordHash String
+  name         String
+  globalRole   GlobalRole @default(STAFF)
+  locale       String     @default("zh")
+  createdAt    DateTime   @default(now())
+
+  tenant             Tenant?              @relation(fields: [tenantId], references: [id])
+  storeUsers         StoreUser[]
+  userRegions        UserRegion[]
+  transactions       InventoryTransaction[]
+  stocktakeCreated   StocktakeSession[]   @relation("CreatedBy")
+  stocktakeConfirmed StocktakeSession[]   @relation("ConfirmedBy")
+}
+
+model TenantRegion {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  userRegions UserRegion[]
+
+  @@unique([tenantId, name])
+}
+
+model UserRegion {
+  id       String @id @default(cuid())
+  userId   String
+  tenantId String
+  region   String
+
+  user         User         @relation(fields: [userId], references: [id])
+  tenantRegion TenantRegion @relation(fields: [tenantId, region], references: [tenantId, name])
+
+  @@unique([userId, region])
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  region    String
+  timezone  String   @default("Asia/Kuala_Lumpur")
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  storeUsers         StoreUser[]
+  storeInventory     StoreInventory[]
+  saleEvents         SaleEvent[]
+  stocktakes         StocktakeSession[]
+  restockSuggestions RestockSuggestion[]
+  webhookLogs        WebhookLog[]
+  transactions       InventoryTransaction[]
+}
+
+model StoreUser {
+  id       String    @id @default(cuid())
+  userId   String
+  storeId  String
+  tenantId String
+  role     StoreRole
+
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([userId, storeId])
+}
+
+model Product {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String
+  nameEn   String
+  sku      String
+  category String @default("")
+  status   String @default("active")
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  recipes   ProductRecipe[]
+  saleItems SaleItem[]
+
+  @@unique([tenantId, sku])
+}
+
+model Material {
+  id       String       @id @default(cuid())
+  tenantId String
+  name     String
+  nameEn   String
+  type     MaterialType
+  unit     String
+  spec     String       @default("")
+  status   String       @default("active")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  recipes            ProductRecipe[]
+  storeInventory     StoreInventory[]
+  transactions       InventoryTransaction[]
+  stocktakeItems     StocktakeItem[]
+  restockSuggestions RestockSuggestion[]
+}
+
+model ProductRecipe {
+  id          String @id @default(cuid())
+  tenantId    String
+  productId   String
+  materialId  String
+  quantity    Float
+  unit        String
+  sizeVariant String @default("standard")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@unique([productId, materialId, sizeVariant])
+}
+
+model StoreInventory {
+  id              String   @id @default(cuid())
+  tenantId        String
+  storeId         String
+  materialId      String
+  currentQty      Float    @default(0)
+  unit            String
+  safetyStockQty  Float    @default(0)
+  defaultOrderQty Float    @default(0)
+  lastUpdatedAt   DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@unique([storeId, materialId])
+}
+
+model InventoryTransaction {
+  id          String                   @id @default(cuid())
+  tenantId    String
+  storeId     String
+  materialId  String
+  delta       Float
+  type        InventoryTransactionType
+  referenceId String?
+  note        String                   @default("")
+  createdBy   String
+  createdAt   DateTime                 @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+  user     User     @relation(fields: [createdBy], references: [id])
+}
+
+model SaleEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  storeId    String
+  posOrderId String
+  posSource  String
+  soldAt     DateTime
+  createdAt  DateTime @default(now())
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  store  Store      @relation(fields: [storeId], references: [id])
+  items  SaleItem[]
+
+  @@unique([storeId, posOrderId])
+}
+
+model SaleItem {
+  id          String @id @default(cuid())
+  saleEventId String
+  productId   String
+  sizeVariant String @default("standard")
+  quantity    Int
+  unitPrice   Float
+
+  saleEvent SaleEvent @relation(fields: [saleEventId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+}
+
+model StocktakeSession {
+  id          String          @id @default(cuid())
+  tenantId    String
+  storeId     String
+  periodStart String
+  status      StocktakeStatus @default(DRAFT)
+  createdBy   String
+  confirmedBy String?
+  createdAt   DateTime        @default(now())
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  store     Store           @relation(fields: [storeId], references: [id])
+  creator   User            @relation("CreatedBy", fields: [createdBy], references: [id])
+  confirmer User?           @relation("ConfirmedBy", fields: [confirmedBy], references: [id])
+  items     StocktakeItem[]
+}
+
+model StocktakeItem {
+  id         String @id @default(cuid())
+  sessionId  String
+  materialId String
+  systemQty  Float
+  actualQty  Float  @default(0)
+  variance   Float  @default(0)
+
+  session  StocktakeSession @relation(fields: [sessionId], references: [id])
+  material Material         @relation(fields: [materialId], references: [id])
+
+  @@unique([sessionId, materialId])
+}
+
+model RestockSuggestion {
+  id            String        @id @default(cuid())
+  tenantId      String
+  storeId       String
+  materialId    String
+  currentQty    Float
+  avgDailySales Float
+  coverageDays  Int
+  suggestedQty  Float
+  periodDate    String
+  status        RestockStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@unique([storeId, materialId, periodDate])
+}
+
+model WebhookLog {
+  id           String        @id @default(cuid())
+  tenantId     String
+  storeId      String
+  posSource    String
+  rawPayload   Json
+  status       WebhookStatus @default(RETRYING)
+  errorMessage String?
+  retryCount   Int           @default(0)
+  receivedAt   DateTime      @default(now())
+  processedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  store  Store  @relation(fields: [storeId], references: [id])
+}
