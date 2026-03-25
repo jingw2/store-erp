@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
+import { TenantContextInterceptor } from './tenant-context.interceptor';
 
 @Module({
   imports: [
@@ -15,8 +16,8 @@ import { RolesGuard } from './roles.guard';
       signOptions: { expiresIn: process.env.JWT_EXPIRES_IN ?? '15m' },
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard, TenantContextInterceptor],
   controllers: [AuthController],
-  exports: [AuthService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, TenantContextInterceptor],
 })
 export class AuthModule {}
