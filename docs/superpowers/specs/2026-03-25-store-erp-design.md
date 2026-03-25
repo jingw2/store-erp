@@ -44,7 +44,7 @@ store-erp/
 | Database | PostgreSQL 16 (Supabase in production, Docker in dev) + Prisma ORM | Row-level multi-tenancy |
 | Cache / Queue | Redis + BullMQ | Restocking calculation jobs, notification queue |
 | Auth | JWT + Refresh Token (NestJS Guards) | Tenant context auto-injected |
-| Notifications | Pluggable NotificationProvider (WhatsApp via 360dialog / WeCom / Email) | |
+| Notifications | Pluggable NotificationProvider (WhatsApp via 360dialog / Email) | |
 | i18n | next-intl (frontend) + Accept-Language header (API) | Default zh |
 | Deployment | Docker Compose (dev) / Kubernetes (production) | Independent containers |
 
@@ -245,7 +245,6 @@ suggestedQty = defaultOrderQty   (from StoreInventory.defaultOrderQty)
 ```
 apps/api/src/notifications/providers/
 ├── whatsapp.provider.ts   # via 360dialog (Malaysia-dominant)
-├── wecom.provider.ts      # 企业微信 (Chinese brand HQs)
 └── email.provider.ts      # Fallback / summary reports
 ```
 
