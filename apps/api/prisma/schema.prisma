@@ -47,6 +47,7 @@ enum RestockStatus {
 }
 
 enum WebhookStatus {
+  PENDING
   SUCCESS
   FAILED
   RETRYING
@@ -62,6 +63,7 @@ model Tenant {
 
   stores             Store[]
   users              User[]
+  storeUsers         StoreUser[]
   regions            TenantRegion[]
   products           Product[]
   materials          Material[]
@@ -90,6 +92,8 @@ model User {
   transactions       InventoryTransaction[]
   stocktakeCreated   StocktakeSession[]   @relation("CreatedBy")
   stocktakeConfirmed StocktakeSession[]   @relation("ConfirmedBy")
+
+  @@index([tenantId])
 }
 
 model TenantRegion {
@@ -132,6 +136,8 @@ model Store {
   restockSuggestions RestockSuggestion[]
   webhookLogs        WebhookLog[]
   transactions       InventoryTransaction[]
+
+  @@index([tenantId])
 }
 
 model StoreUser {
@@ -141,8 +147,9 @@ model StoreUser {
   tenantId String
   role     StoreRole
 
-  user  User  @relation(fields: [userId], references: [id])
-  store Store @relation(fields: [storeId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  store  Store  @relation(fields: [storeId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, storeId])
 }
@@ -161,6 +168,7 @@ model Product {
   saleItems SaleItem[]
 
   @@unique([tenantId, sku])
+  @@index([tenantId])
 }
 
 model Material {
@@ -179,6 +187,8 @@ model Material {
   transactions       InventoryTransaction[]
   stocktakeItems     StocktakeItem[]
   restockSuggestions RestockSuggestion[]
+
+  @@index([tenantId])
 }
 
 model ProductRecipe {
@@ -195,6 +205,7 @@ model ProductRecipe {
   material Material @relation(fields: [materialId], references: [id])
 
   @@unique([productId, materialId, sizeVariant])
+  @@index([productId, sizeVariant])
 }
 
 model StoreInventory {
@@ -231,6 +242,8 @@ model InventoryTransaction {
   store    Store    @relation(fields: [storeId], references: [id])
   material Material @relation(fields: [materialId], references: [id])
   user     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([storeId, materialId, createdAt])
 }
 
 model SaleEvent {
@@ -247,6 +260,7 @@ model SaleEvent {
   items  SaleItem[]
 
   @@unique([storeId, posOrderId])
+  @@index([storeId, soldAt])
 }
 
 model SaleItem {
@@ -276,6 +290,8 @@ model StocktakeSession {
   creator   User            @relation("CreatedBy", fields: [createdBy], references: [id])
   confirmer User?           @relation("ConfirmedBy", fields: [confirmedBy], references: [id])
   items     StocktakeItem[]
+
+  @@index([storeId, status])
 }
 
 model StocktakeItem {
@@ -318,7 +334,7 @@ model WebhookLog {
   storeId      String
   posSource    String
   rawPayload   Json
-  status       WebhookStatus @default(RETRYING)
+  status       WebhookStatus @default(PENDING)
   errorMessage String?
   retryCount   Int           @default(0)
   receivedAt   DateTime      @default(now())
@@ -326,4 +342,6 @@ model WebhookLog {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   store  Store  @relation(fields: [storeId], references: [id])
+
+  @@index([status, receivedAt])
 }
