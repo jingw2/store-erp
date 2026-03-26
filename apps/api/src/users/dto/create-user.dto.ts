@@ -3,18 +3,20 @@ import { GlobalRole } from '@store-erp/types';
 
 export class CreateUserDto {
   @IsEmail()
-  email: string;
+  @IsNotEmpty()
+  email!: string;
 
   @IsString()
   @IsNotEmpty()
-  password: string;
+  password!: string;
 
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsEnum(GlobalRole)
-  globalRole: GlobalRole;
+  @IsNotEmpty()
+  globalRole!: GlobalRole;
 
   @IsString()
   @IsOptional()

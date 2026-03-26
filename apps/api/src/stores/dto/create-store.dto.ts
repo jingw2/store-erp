@@ -3,11 +3,11 @@ import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 export class CreateStoreDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  region: string;
+  region!: string;
 
   @IsString()
   @IsOptional()

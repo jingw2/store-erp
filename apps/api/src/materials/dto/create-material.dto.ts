@@ -4,18 +4,19 @@ import { MaterialType } from '@prisma/client';
 export class CreateMaterialDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  nameEn: string;
+  nameEn!: string;
 
   @IsEnum(MaterialType)
-  type: MaterialType;
+  @IsNotEmpty()
+  type!: MaterialType;
 
   @IsString()
   @IsNotEmpty()
-  unit: string;
+  unit!: string;
 
   @IsString()
   @IsOptional()

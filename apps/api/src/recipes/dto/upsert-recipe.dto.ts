@@ -4,15 +4,15 @@ import { Type } from 'class-transformer';
 export class RecipeItemDto {
   @IsString()
   @IsNotEmpty()
-  materialId: string;
+  materialId!: string;
 
   @IsNumber()
   @IsPositive()
-  quantity: number;
+  quantity!: number;
 
   @IsString()
   @IsNotEmpty()
-  unit: string;
+  unit!: string;
 }
 
 export class UpsertRecipeDto {
@@ -21,7 +21,8 @@ export class UpsertRecipeDto {
   sizeVariant?: string;
 
   @IsArray()
+  @IsNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => RecipeItemDto)
-  items: RecipeItemDto[];
+  items!: RecipeItemDto[];
 }
